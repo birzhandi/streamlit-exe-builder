@@ -1,0 +1,315 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Feb 22 10:52:17 2026
+
+@author: LENOVO
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 29 21:22:49 2026
+
+@author: LENOVO
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Autler towns Rydberg EIT spectrum
+ML-ready synthetic data generator
+"""
+
+import numpy as np
+import streamlit as st
+st.title("Rydberg Sensor Sensitivity")
+st.button("Run")
+#from rydberg_sensitivityAutler import rydberg_sensitivityAutlerTowns
+# User inputs
+# Pp = st.slider("Probe power (mW)", 0.1, 40.0, 1.0)
+# Pc = st.slider("Coupling power (mW)", 0.1, 70.0, 37.0)
+Pp = st.number_input("Probe power (mW)", 0.1, 40.0, 1.0)
+Pc= st.number_input("Coupling power (mW)", 0.1, 70.0, 37.0)
+Dp = st.number_input("Probe detuning (MHz)", -100, 100, 0)
+Dc = st.number_input("Coupling detuning (MHz)", -100, 100, 0)
+Gamma = st.number_input("Decoherence (kHz)", 1, 1000, 100)
+
+#Gamma = st.number_input("Decoherence (kHz)", 1, 1000.0, 1)
+Nd = st.number_input("Atom number", 1e6, 1e9, 1e8)
+L = st.number_input("Atomic Cell length(m)", 10e-3, 100e-3, 75e-3)
+mu = st.number_input("Rydberg state dipole (ea0)", 1e3, 4e3, 2.5e3)
+wc = st.number_input("Coupling beam diameter (µm)", 10, 4000, 40)
+T = st.slider("Cell temperature (°C)", 20.0, 80.0, 22.5) + 273.15
+Ed= st.number_input("Electric Field (µV/cm)", 10, 4000, 4000)
+
+Emin=490
+# # Convert units
+# params = {
+#     'Pp': Pp*1e-3,       # mW → W
+#     'Pc': Pc*1e-3,
+#     'Dp': Dp*1e6,        # MHz → Hz
+#     'Dc': Dc*1e6,
+#     'Gamma': Gamma*1e6,
+#     'Nd': Nd,
+#     'L': L,
+#     'mu': mu*1.602e-29,  # ea0 → C·m
+#     'wc': wc*1e-6,  # µm
+#     'T': T,  # kelvin
+#     'Ed': Ed,  #uv/cm
+
+# }
+
+# Calculate
+#S = rydberg_sensitivityAutlerTowns(params)
+#st.metric("Sensitivity (µV/cm/√Hz)", f"{S*1e8:.2f}")
+
+# -----------------------------
+# Physical constants
+# -----------------------------
+a0 = 5.29177e-11
+e = 1.6e-19
+kb = 1.380649e-23
+c0 = 3e8
+u = 1.66e-27
+hbar = 1.054e-34
+eps0 = 8.854e-12
+m=1.411e-25
+T0=295.65
+#vaver=np.sqrt(8*kb*T0/np.pi*m)
+#T=T0
+vaera=271*np.sqrt(T/T0)
+vaera = 271*np.sqrt(T/T0)   # T from slider
+#gamma_tt = gamma_tt0 * np.sqrt(T/T0)
+##---------- Atomic parameters ----------
+dm = 2500 * a0 * e;     #   % Rydberg dipole moment
+wp=35e-6
+gamatt = 2*np.pi*3.9e6
+Dp = Dp * 1e6
+Dc = Dc * 1e6
+Gamma_eg=Gamma* 1e3
+# -----------------------------
+# Atomic / experimental params
+# -----------------------------
+#T = 22.5 + 273.15                      # K
+M = 85.4678 * u                        # Rb-85 mass
+landap = 780e-9
+landac = 420e-9
+landaM = 2.15e-2
+
+kp = 2 * np.pi / landap
+wc0 = 40e-6;   #    % beam waist (m)
+Nd0=100000000;
+L0=0.075
+# Decoherence rates
+
+gamma1 = 2*np.pi*6.06e6
+gamma2 = 2*np.pi*1.0e3
+gamma3 = 2*np.pi*1.0e6
+gamma_tt0 = 2*np.pi*3.9e6   # reference transit-time decoherence
+gamma_tt  = gamma_tt0 * (wc0/wc)*np.sqrt(T / T0)
+
+
+# Optical Rabi frequencies
+# Omegap = 2*np.pi*1.7e6
+# Omegac = 2*np.pi*2.9e6
+# Pc = 37e-3;   #    % coupling power (W)
+# Ic = 2*Pc/(np.pi*wc**2);
+# Ip=2*Pp/(np.pi*wp**2);
+dc = 0.014 * a0 * e;
+# Omegac =dc * np.sqrt(2*0.023716*Ic/(c0*eps0)) / hbar;#0.023716 for calibration
+dp= 3 * a0 * e;
+# Omegap = 2*np.pi*1.7e6;
+Ic0=2*37*1e-3/(np.pi*(40)**2)        # W/m^2
+
+Ip = 2*Pp*1e-3/(np.pi*wp**2)        # W/m^2
+Ic = 2*Pc*1e-3/(np.pi*wc**2)
+Omegap0 =dp * np.sqrt(2*0.023716*Ip/(c0*eps0)) / hbar;#0.023716 for calibration
+
+Omegap = dp * np.sqrt(2*0.023716*Ip/(c0*eps0)) / hbar
+Omegac = dc * np.sqrt(2*0.023716*Ic/(c0*eps0)) / hbar
+
+Omegac=2*np.pi*2.9e6*np.sqrt(Ic/Ic0)
+s_p = 2*(Omegap/(gamma1+Gamma_eg))**2
+Gamma_eg_eff = Gamma_eg * np.sqrt(1 + s_p)
+gamma1_eff = gamma1 + gamma_tt+Gamma_eg_eff
+gamma2_eff = gamma2 + gamma_tt
+gamma3_eff = gamma3 + gamma_tt
+
+# -----------------------------
+# Microwave fields (HETERODYNE)
+# -----------------------------
+Omega_sig = 2*np.pi*1.6e6
+Omega_LO  = 1 * Omega_sig   # strong local field
+
+Omega1 = Omega_sig
+Omega2 = Omega_sig
+Omega3 = Omega_sig
+
+# RF detunings (MHz-scale)
+Delta1 = 0.30e6
+Delta2 = 0.65e6
+Delta3 = 1.10e6
+
+# -----------------------------
+# Velocity grid + distribution
+# -----------------------------
+v = np.linspace(-15, 15, 8001)    # m/s
+T0 = 295.65   # reference temperature (K)
+eta = np.sqrt(T / T0)
+
+doppler = kp * v * eta
+#doppler = kp * v                   # Hz
+
+MB = np.sqrt(M/(2*np.pi*kb*T)) * np.exp(-M*v**2/(2*kb*T))
+
+# -----------------------------
+# Spectrum calculation
+# -----------------------------
+spectrum = np.zeros_like(v, dtype=float)
+spectrumAT=np.zeros_like(v, dtype=float)
+A = np.zeros_like(v, dtype=float)
+alpha = np.zeros_like(v, dtype=float)
+alphaAT = np.zeros_like(v, dtype=float)
+
+
+for i, dv in enumerate(doppler):
+
+    # Total RF Rabi frequency (heterodyne mixing)
+    Omega_RF = (
+        Omega_LO
+       
+    )
+
+    # Detunings including Doppler
+    # Gamma_eg_eff = Gamma_eg * np.sqrt(1 + 2*(Omegap/Gamma_eg)**2 + 2*(Omegac/Gamma_eg)**2
+    #  )
+# def compute_detuning(omega, detuning=0):
+    
+#     if detuning==0:
+#     Delta_eff = Dp
+#     else:
+#     Delta_eff = Dp + Omega**2/(4*Dp )
+
+#     return Delta_eff
+#     Delta_p_eff = compute_detuning(omegap, detuning=Dp)
+#     Delta_c_eff = compute_detuning(omegac, detuning=Dc)
+# def dressed_shift(Delta, Omega):
+#     return 0.5 * (np.sqrt(Delta**2 + Omega**2) - np.abs(Delta))
+#     deltap=dressed_shift(Dp, Omegap)
+#     deltac=dressed_shift(Dc, Omegac)
+    delta1 = 2*np.pi*dv
+    delta2 = delta1 - 2*np.pi*dv*(landap/landac)
+    delta3 = delta2 - 2*np.pi*dv*(landap/landaM)
+    delta1 = 2*np.pi*dv + Dp # Dp from slider
+    delta2 = delta1 - 2*np.pi*dv*(landap/landac) + Dc
+    delta3 = delta2 - 2*np.pi*dv*(landap/landaM)
+    denom1 =  gamma1_eff - 1j*delta1
+    denom2 =  gamma2_eff - 1j*delta2
+    denom3 =  gamma3_eff - 1j*delta3
+   #factor=(N*(dp**2)/2*eps0*hbar)
+    chi = 1j * 14e8 / (denom1 + ((Omegac / 2) ** 2 / denom2 + (Omega_RF / 2) ** 2 / denom3))
+    Omega_M=Ed*Omega_RF/Emin
+    chiomega= 1j * 14e8 / (denom1 + ((Omegac / 2) ** 2 / denom2 + (Omega_M / 2) ** 2 / denom3))
+
+    # chi2 = N*1j / (
+    #  D1
+    #  + (Omegac/2)**2 / D2
+    #  + (Omega_RF/2)**2 / D3
+    #  )
+    N=Nd*L
+    N0=Nd0*L0
+    spectrum[i] =np.abs(chi) * MB[i]
+    spectrumAT[i]=np.abs(chiomega) * MB[i]
+    alpha[i] =np.imag(chi) * MB[i]
+    alphaAT[i] =np.imag(chiomega) * MB[i]
+
+    
+# -----------------------------
+# Normalize for ML
+# -----------------------------
+# spectrum2=0.1*spectrum /5.291936627728202e-11#0.1experiment report
+def compute_contrast(spectrum, normalize=True):
+    """
+    Compute EIT contrast from a transmission spectrum.
+
+    Parameters
+    ----------
+    spectrum : array
+        Transmission vs detuning.
+    normalize : bool
+        If True returns fractional contrast.
+        If False returns absolute depth.
+
+    Returns
+    -------
+    contrast : float
+    """
+
+    Tmax = np.max(spectrum)
+    Tmin = np.min(spectrum)
+
+    if normalize:
+        contrast = (Tmax - Tmin) / Tmax
+    else:
+        contrast = Tmax - Tmin
+
+    return contrast
+contrast1234=np.max(spectrum)
+# contrastAT=np.max(spectrumAT)
+# contrast = np.max(spectrum) - np.min(spectrum)
+# contrastv = (np.max(spectrum) - np.min(spectrum)) / np.max(spectrum)
+contrast = compute_contrast(spectrum, normalize=False)
+contrastAT = compute_contrast(spectrumAT, normalize=False)
+contrastv= compute_contrast(spectrum, normalize=True)
+
+v_eff = np.sum(np.abs(v) * MB) / np.sum(MB)
+S=0.07*2500*Emin/(contrast*mu)
+Transmission = np.exp(-alpha * L)
+TransmissionAT = np.exp(-alphaAT * L)
+st.metric("Effective ⟨|v|⟩ (m/s)", f"{v_eff:.2f}")
+st.metric("EIT Contrast (v)", f"{contrast:.2f}")
+st.metric("Sensitivity (µV/cm/√Hz)", f"{S:.2f}")
+st.metric("Autler Towns Contrast at the applied field (v)", f"{contrastAT:.2f}")
+st.metric("EIT Contrast vis (v)", f"{contrastv:.2f}")
+st.write("Ic", Ic)
+st.write("gamma_tt", gamma_tt)
+st.write("gamma1_eff", gamma1_eff)
+plot_spectrum = st.checkbox("Plot spectrum", value=True)
+import matplotlib.pyplot as plt
+
+if plot_spectrum:
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    ax.plot(doppler / 1e6, spectrum, lw=2, label="Transmission")
+    # ax.plot(doppler / 1e6, spectrumAT, lw=2, label="Transmission")
+
+    ax.set_xlabel("Doppler shift (MHz)")
+    ax.set_ylabel("Transmission Contrast (arb.)")
+    ax.set_title("Autler Town Splitting Rydberg Spectrum")
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
+    
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    ax.plot(doppler / 1e6, 1-Transmission, lw=2, label="Transmission")
+    ax.plot(doppler / 1e6, 1-TransmissionAT, lw=2, label="Transmission")
+
+    ax.set_xlabel("Doppler shift (MHz)")
+    ax.set_ylabel("Transmission (arb.)")
+    ax.set_title("Autler Town Splitting Rydberg Spectrum")
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
+#con=np.max(spectrum)
+# -----------------------------
+# Plot
+# -----------------------------
+# plt.figure(figsize=(10,4))
+# plt.plot(doppler/1e7, spectrum2, lw=2)
+# #plt.plot(doppler/1e7, A2, lw=2)
+# plt.xlabel("Doppler shift (MHz)")
+# plt.ylabel("Transmission (arb.)")
+# plt.title("Autler Towns Rydberg Spectrum")
+# plt.grid(True)
+# plt.tight_layout()
+# plt.show()
